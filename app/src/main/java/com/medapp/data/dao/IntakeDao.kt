@@ -38,6 +38,28 @@ interface IntakeDao {
     @Query("SELECT plannedAt FROM intakes WHERE medicineId = :medicineId AND plannedAt BETWEEN :fromMillis AND :toMillis")
     suspend fun getPlannedAtInRange(medicineId: String, fromMillis: Long, toMillis: Long): List<Long>
 
+    @Query(
+        """
+        SELECT * FROM intakes
+        WHERE medicineId = :medicineId
+          AND status = 'PLANNED'
+          AND plannedAt BETWEEN :fromMillis AND :toMillis
+        ORDER BY plannedAt ASC
+        """
+    )
+    suspend fun getPlannedInRangeForMedicine(medicineId: String, fromMillis: Long, toMillis: Long): List<IntakeEntity>
+
+    @Query(
+        """
+        SELECT * FROM intakes
+        WHERE medicineId = :medicineId
+          AND status = 'PLANNED'
+          AND plannedAt >= :fromMillis
+        ORDER BY plannedAt ASC
+        """
+    )
+    suspend fun getPlannedFromForMedicine(medicineId: String, fromMillis: Long): List<IntakeEntity>
+
     @Query("SELECT COALESCE(SUM(pillCountPlanned), 0) FROM intakes WHERE medicineId = :medicineId")
     suspend fun getPlannedPillsSum(medicineId: String): Double
 
