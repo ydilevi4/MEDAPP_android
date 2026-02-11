@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Update
 import com.medapp.data.entity.IntakeEntity
 import com.medapp.data.model.TodayIntakeItem
+import com.medapp.reminder.OverdueIntakeNotificationItem
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -42,4 +43,35 @@ interface IntakeDao {
 
     @Query("DELETE FROM intakes WHERE status = 'PLANNED' AND plannedAt >= :fromMillis")
     suspend fun deletePlannedFrom(fromMillis: Long)
+
+    @Query(
+        """
+        SELECT i.id AS intakeId, i.medicineId, m.name AS medicineName, i.plannedAt
+        FROM intakes i
+        INNER JOIN medicines m ON m.id = i.medicineId
+        WHERE i.status = 'PLANNED'
+          AND i.plannedAt < :nowMillis
+          AND i.plannedAt BETWEEN :horizonStart AND :horizonEnd
+        ORDER BY i.plannedAt ASC
+        """
+    )
+    suspend fun getOverduePlannedIntakes(
+        nowMillis: Long,
+        horizonStart: Long,
+        horizonEnd: Long
+    ): List<OverdueIntakeNotificationItem>
+
+    @Query(
+        """
+        SELECT * FROM intakes
+        WHERE medicineId = :medicineId
+          AND plannedAt > :plannedAt
+        ORDER BY plannedAt ASC
+        LIMIT 1
+        """
+    )
+    suspend fun getNextIntakeForMedicine(medicineId: String, plannedAt: Long): IntakeEntity?
+
+    @Query("UPDATE intakes SET status = :status, updatedAt = :updatedAt WHERE id = :intakeId")
+    suspend fun updateStatusById(intakeId: String, status: String, updatedAt: Long)
 }
