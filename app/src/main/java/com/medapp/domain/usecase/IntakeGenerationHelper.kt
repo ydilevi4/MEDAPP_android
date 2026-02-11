@@ -31,7 +31,7 @@ object IntakeGenerationHelper {
             params.zoneId
         ).toLocalDate()
 
-        var plannedPills = params.alreadyPlannedPills
+        var newlyGeneratedPills = 0.0
         val generated = mutableListOf<Long>()
 
         when (ScheduleType.valueOf(params.medicine.scheduleType)) {
@@ -49,13 +49,13 @@ object IntakeGenerationHelper {
                             if (plannedDateTime.isAfter(horizonEnd)) continue
 
                             if (shouldStopByDuration(params.medicine, date, startDate)) continue
-                            if (isPillsCountExceeded(params.medicine, plannedPills, params.pillCountPerIntake)) continue
+                            if (isPillsCountExceeded(params.medicine, params.alreadyPlannedPills + newlyGeneratedPills, params.pillCountPerIntake)) continue
 
                             val millis = plannedDateTime.atZone(params.zoneId).toInstant().toEpochMilli()
                             if (!params.existingPlannedAtMillis.contains(millis)) {
                                 generated += millis
+                                newlyGeneratedPills += params.pillCountPerIntake
                             }
-                            plannedPills += params.pillCountPerIntake
                         }
                     }
                     date = date.plusDays(1)
@@ -76,13 +76,13 @@ object IntakeGenerationHelper {
                     val date = cursor.toLocalDate()
                     if (isTakingDay(params.medicine, date, startDate) &&
                         !shouldStopByDuration(params.medicine, date, startDate) &&
-                        !isPillsCountExceeded(params.medicine, plannedPills, params.pillCountPerIntake)
+                        !isPillsCountExceeded(params.medicine, params.alreadyPlannedPills + newlyGeneratedPills, params.pillCountPerIntake)
                     ) {
                         val millis = cursor.atZone(params.zoneId).toInstant().toEpochMilli()
                         if (!params.existingPlannedAtMillis.contains(millis)) {
                             generated += millis
+                            newlyGeneratedPills += params.pillCountPerIntake
                         }
-                        plannedPills += params.pillCountPerIntake
                     }
                     cursor = cursor.plusHours(interval.toLong())
                 }
