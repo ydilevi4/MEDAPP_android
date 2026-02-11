@@ -72,6 +72,12 @@ class GenerateIntakesUseCase(
         }
     }
 
+    suspend fun refreshFuturePlanned() {
+        val nowMillis = System.currentTimeMillis()
+        intakeDao.deletePlannedFrom(nowMillis)
+        invoke()
+    }
+
     private companion object {
         const val HORIZON_DAYS = 90L
     }
