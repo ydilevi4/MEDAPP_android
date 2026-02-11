@@ -5,6 +5,7 @@ import com.medapp.data.entity.SettingsEntity
 import com.medapp.data.model.DurationType
 import com.medapp.data.model.ScheduleType
 import com.medapp.data.util.AnchorJsonHelper
+import com.medapp.domain.util.TimeParser
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -66,7 +67,7 @@ object IntakeGenerationHelper {
                 val interval = params.medicine.intervalHours ?: return emptyList()
                 if (interval <= 0) return emptyList()
 
-                val firstDoseTime = params.medicine.firstDoseTime?.let(LocalTime::parse) ?: DEFAULT_FIRST_DOSE_TIME
+                val firstDoseTime = TimeParser.parseLocalTimeSafe(params.medicine.firstDoseTime, DEFAULT_FIRST_DOSE_TIME)
                 var cursor = LocalDateTime.of(startDate, firstDoseTime)
                 while (cursor.isBefore(params.now)) {
                     cursor = cursor.plusHours(interval.toLong())
@@ -138,11 +139,11 @@ object IntakeGenerationHelper {
     }
 
     private fun anchorToLocalTime(anchor: String, settings: SettingsEntity): LocalTime? {
-        val wake = LocalTime.parse(settings.wakeTime)
-        val breakfast = LocalTime.parse(settings.breakfastTime)
-        val lunch = LocalTime.parse(settings.lunchTime)
-        val dinner = LocalTime.parse(settings.dinnerTime)
-        val sleep = LocalTime.parse(settings.sleepTime)
+        val wake = TimeParser.parseLocalTimeSafe(settings.wakeTime, LocalTime.of(7, 0))
+        val breakfast = TimeParser.parseLocalTimeSafe(settings.breakfastTime, LocalTime.of(8, 0))
+        val lunch = TimeParser.parseLocalTimeSafe(settings.lunchTime, LocalTime.of(13, 0))
+        val dinner = TimeParser.parseLocalTimeSafe(settings.dinnerTime, LocalTime.of(19, 0))
+        val sleep = TimeParser.parseLocalTimeSafe(settings.sleepTime, LocalTime.of(23, 0))
 
         return when (anchor) {
             "AFTER_WAKE" -> wake

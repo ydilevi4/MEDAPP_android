@@ -38,48 +38,56 @@ class MedicinesViewModel(
     fun createMedicine(input: WizardInput, onDone: () -> Unit) {
         viewModelScope.launch {
             _isSaving.value = true
-            val now = System.currentTimeMillis()
-            val medicineId = UUID.randomUUID().toString()
-            val packageId = UUID.randomUUID().toString()
+            try {
+                if (input.name.isBlank() || input.targetDoseMg <= 0 || input.pillDoseMg <= 0 || input.pillsInPack <= 0) {
+                    return@launch
+                }
 
-            createMedicineUseCase(
-                CreateMedicineUseCase.Params(
-                    medicine = MedicineEntity(
-                        id = medicineId,
-                        name = input.name,
-                        targetDoseMg = input.targetDoseMg,
-                        scheduleType = input.scheduleType,
-                        anchorsJson = AnchorJsonHelper.encode(input.anchors),
-                        intervalHours = input.intervalHours,
-                        firstDoseTime = input.firstDoseTime,
-                        durationType = input.durationType,
-                        durationDays = input.durationDays,
-                        totalPillsToTake = input.totalPillsToTake,
-                        courseDays = input.courseDays,
-                        restDays = input.restDays,
-                        cyclesCount = input.cyclesCount,
-                        isActive = true,
-                        createdAt = now,
-                        updatedAt = now
-                    ),
-                    pillPackage = PillPackageEntity(
-                        id = packageId,
-                        medicineId = medicineId,
-                        pillDoseMg = input.pillDoseMg,
-                        divisibleHalf = input.divisibleHalf,
-                        pillsInPack = input.pillsInPack,
-                        pillsRemaining = input.pillsInPack,
-                        purchaseLink = input.purchaseLink.takeIf { it.isNotBlank() },
-                        warnWhenEnding = input.warnWhenEnding,
-                        isCurrent = true,
-                        createdAt = now,
-                        updatedAt = now
+                val now = System.currentTimeMillis()
+                val medicineId = UUID.randomUUID().toString()
+                val packageId = UUID.randomUUID().toString()
+
+                createMedicineUseCase(
+                    CreateMedicineUseCase.Params(
+                        medicine = MedicineEntity(
+                            id = medicineId,
+                            name = input.name,
+                            targetDoseMg = input.targetDoseMg,
+                            scheduleType = input.scheduleType,
+                            intakesPerDay = input.intakesPerDay.coerceIn(1, 6),
+                            anchorsJson = AnchorJsonHelper.encode(input.anchors),
+                            intervalHours = input.intervalHours,
+                            firstDoseTime = input.firstDoseTime,
+                            durationType = input.durationType,
+                            durationDays = input.durationDays,
+                            totalPillsToTake = input.totalPillsToTake,
+                            courseDays = input.courseDays,
+                            restDays = input.restDays,
+                            cyclesCount = input.cyclesCount,
+                            isActive = true,
+                            createdAt = now,
+                            updatedAt = now
+                        ),
+                        pillPackage = PillPackageEntity(
+                            id = packageId,
+                            medicineId = medicineId,
+                            pillDoseMg = input.pillDoseMg,
+                            divisibleHalf = input.divisibleHalf,
+                            pillsInPack = input.pillsInPack,
+                            pillsRemaining = input.pillsInPack,
+                            purchaseLink = input.purchaseLink.takeIf { it.isNotBlank() },
+                            warnWhenEnding = input.warnWhenEnding,
+                            isCurrent = true,
+                            createdAt = now,
+                            updatedAt = now
+                        )
                     )
                 )
-            )
-            generateIntakesUseCase()
-            _isSaving.value = false
-            onDone()
+                generateIntakesUseCase()
+                onDone()
+            } finally {
+                _isSaving.value = false
+            }
         }
     }
 
@@ -97,6 +105,7 @@ class MedicinesViewModel(
         val purchaseLink: String,
         val warnWhenEnding: Boolean,
         val scheduleType: String,
+        val intakesPerDay: Int,
         val anchors: List<String>,
         val intervalHours: Int?,
         val firstDoseTime: String?,

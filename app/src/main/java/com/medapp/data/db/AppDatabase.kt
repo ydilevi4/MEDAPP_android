@@ -21,7 +21,7 @@ import com.medapp.data.entity.SettingsEntity
         SettingsEntity::class,
         PackageTransitionEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
