@@ -18,4 +18,7 @@ interface MedicineDao {
 
     @Query("SELECT * FROM medicines WHERE isActive = 1")
     suspend fun getActiveMedicines(): List<MedicineEntity>
+
+    @Query("SELECT * FROM medicines WHERE id = :id LIMIT 1")
+    suspend fun getById(id: String): MedicineEntity?
 }

@@ -59,7 +59,7 @@ private fun anchorLabel(code: String): String = when (code) {
 }
 
 @Composable
-fun MedicinesScreen(modifier: Modifier = Modifier, viewModel: MedicinesViewModel) {
+fun MedicinesScreen(modifier: Modifier = Modifier, viewModel: MedicinesViewModel, onOpenLowStock: () -> Unit = {}) {
     val medicines by viewModel.medicines.collectAsState()
     var showWizard by remember { mutableStateOf(false) }
 
@@ -69,13 +69,14 @@ fun MedicinesScreen(modifier: Modifier = Modifier, viewModel: MedicinesViewModel
             FloatingActionButton(onClick = { showWizard = true }) { Text("+") }
         }
     ) { padding ->
+        Column(modifier = Modifier.padding(padding).padding(16.dp)) {
+            Button(onClick = onOpenLowStock) { Text("Low stock") }
+
         if (medicines.isEmpty()) {
-            Column(modifier = Modifier.padding(padding).padding(16.dp)) {
                 Text("No medicines yet.")
                 Text("Tap + to create your first medicine.")
-            }
         } else {
-            LazyColumn(modifier = Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(medicines) { med ->
                     Card {
                         Column(Modifier.padding(12.dp)) {
@@ -86,6 +87,7 @@ fun MedicinesScreen(modifier: Modifier = Modifier, viewModel: MedicinesViewModel
                     }
                 }
             }
+        }
         }
     }
 

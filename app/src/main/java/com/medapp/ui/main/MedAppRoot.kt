@@ -9,19 +9,22 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.medapp.domain.usecase.LowStockEstimator
+import com.medapp.ui.lowstock.LowStockScreen
+import com.medapp.ui.lowstock.LowStockViewModel
 import com.medapp.ui.medicines.MedicinesScreen
 import com.medapp.ui.medicines.MedicinesViewModel
 import com.medapp.ui.settings.SettingsScreen
 import com.medapp.ui.settings.SettingsViewModel
 import com.medapp.ui.today.TodayScreen
 import com.medapp.ui.today.TodayViewModel
-import androidx.compose.runtime.collectAsState
 
 enum class MainTab(val title: String, val icon: String) {
     TODAY("Today", "🗓️"),
@@ -30,12 +33,17 @@ enum class MainTab(val title: String, val icon: String) {
 }
 
 @Composable
-fun MedAppRoot(container: AppContainer, initialTab: MainTab = MainTab.TODAY) {
+fun MedAppRoot(container: AppContainer, initialTab: MainTab = MainTab.TODAY, openLowStockOnStart: Boolean = false) {
     var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
     var pendingTab by rememberSaveable { mutableStateOf<MainTab?>(null) }
+    var showLowStock by rememberSaveable { mutableStateOf(openLowStockOnStart) }
 
     LaunchedEffect(initialTab) {
         selectedTab = initialTab
+    }
+
+    LaunchedEffect(openLowStockOnStart) {
+        if (openLowStockOnStart) showLowStock = true
     }
 
     val medicinesViewModel: MedicinesViewModel = viewModel(
@@ -58,6 +66,13 @@ fun MedAppRoot(container: AppContainer, initialTab: MainTab = MainTab.TODAY) {
             container.database.settingsDao(),
             container.ensureSettingsUseCase,
             container.generateIntakesUseCase
+        )
+    )
+    val lowStockViewModel: LowStockViewModel = viewModel(
+        factory = LowStockViewModel.Factory(
+            container.ensureSettingsUseCase,
+            LowStockEstimator(container.database.medicineDao(), container.database.pillPackageDao(), container.database.intakeDao()),
+            container.confirmPackagePurchaseUseCase
         )
     )
     val settingsUi by settingsViewModel.uiState.collectAsState()
@@ -100,8 +115,16 @@ fun MedAppRoot(container: AppContainer, initialTab: MainTab = MainTab.TODAY) {
     ) { padding ->
         when (selectedTab) {
             MainTab.TODAY -> TodayScreen(modifier = Modifier.padding(padding), viewModel = todayViewModel)
-            MainTab.MEDICINES -> MedicinesScreen(modifier = Modifier.padding(padding), viewModel = medicinesViewModel)
+            MainTab.MEDICINES -> MedicinesScreen(
+                modifier = Modifier.padding(padding),
+                viewModel = medicinesViewModel,
+                onOpenLowStock = { showLowStock = true }
+            )
             MainTab.SETTINGS -> SettingsScreen(modifier = Modifier.padding(padding), viewModel = settingsViewModel)
         }
+    }
+
+    if (showLowStock) {
+        LowStockScreen(viewModel = lowStockViewModel, onDismiss = { showLowStock = false })
     }
 }

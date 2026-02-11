@@ -2,8 +2,10 @@ package com.medapp.domain.usecase
 
 import com.medapp.data.dao.IntakeDao
 import com.medapp.data.dao.MedicineDao
+import com.medapp.data.dao.PackageTransitionDao
 import com.medapp.data.dao.PillPackageDao
 import com.medapp.data.entity.IntakeEntity
+import com.medapp.data.entity.PillPackageEntity
 import com.medapp.data.model.EqualDistanceRule
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -13,6 +15,7 @@ class GenerateIntakesUseCase(
     private val medicineDao: MedicineDao,
     private val intakeDao: IntakeDao,
     private val pillPackageDao: PillPackageDao,
+    private val packageTransitionDao: PackageTransitionDao,
     private val doseCalculationUseCase: DoseCalculationUseCase,
     private val ensureSettingsUseCase: EnsureSettingsUseCase
 ) {
@@ -29,12 +32,8 @@ class GenerateIntakesUseCase(
 
         for (medicine in activeMedicines) {
             val currentPackage = pillPackageDao.getCurrentForMedicine(medicine.id) ?: continue
-            val dose = doseCalculationUseCase(
-                targetDoseMg = medicine.targetDoseMg,
-                pillDoseMg = currentPackage.pillDoseMg,
-                divisibleHalf = currentPackage.divisibleHalf,
-                tieRule = tieRule
-            )
+            val transition = packageTransitionDao.getForMedicine(medicine.id)
+            val oldPackage = transition?.let { pillPackageDao.getById(it.oldPackageId) }
 
             val existingPlannedAt = intakeDao.getPlannedAtInRange(medicine.id, fromMillis, toMillis).toSet()
             val alreadyPlannedPills = intakeDao.getPlannedPillsSum(medicine.id)
@@ -45,16 +44,23 @@ class GenerateIntakesUseCase(
                     now = nowDateTime,
                     horizonDays = HORIZON_DAYS,
                     zoneId = zone,
-                    pillCountPerIntake = dose.pillCount,
+                    pillCountPerIntake = doseFor(medicine.targetDoseMg, currentPackage, tieRule).pillCount,
                     alreadyPlannedPills = alreadyPlannedPills,
                     existingPlannedAtMillis = existingPlannedAt
                 )
-            )
+            ).sorted()
 
             if (generatedMillis.isEmpty()) continue
 
             val createdAt = System.currentTimeMillis()
+            var oldPillsRemainingForPlan = (transition?.oldPillsLeft ?: 0.0) - (transition?.oldPillsConsumed ?: 0.0)
+
             val toInsert = generatedMillis.map { plannedAt ->
+                val packageForIntake = if (oldPackage != null && oldPillsRemainingForPlan > 1e-9) oldPackage else currentPackage
+                val dose = doseFor(medicine.targetDoseMg, packageForIntake, tieRule)
+                if (packageForIntake.id == oldPackage?.id) {
+                    oldPillsRemainingForPlan = (oldPillsRemainingForPlan - dose.pillCount).coerceAtLeast(0.0)
+                }
                 IntakeEntity(
                     id = UUID.randomUUID().toString(),
                     medicineId = medicine.id,
@@ -62,7 +68,7 @@ class GenerateIntakesUseCase(
                     status = "PLANNED",
                     pillCountPlanned = dose.pillCount,
                     realDoseMgPlanned = dose.realDoseMg,
-                    packageIdPlanned = currentPackage.id,
+                    packageIdPlanned = packageForIntake.id,
                     googleTaskId = null,
                     createdAt = createdAt,
                     updatedAt = createdAt
@@ -76,6 +82,15 @@ class GenerateIntakesUseCase(
         val nowMillis = System.currentTimeMillis()
         intakeDao.deletePlannedFrom(nowMillis)
         invoke()
+    }
+
+    private fun doseFor(targetDoseMg: Int, pkg: PillPackageEntity, tieRule: EqualDistanceRule): DoseCalculationUseCase.Result {
+        return doseCalculationUseCase(
+            targetDoseMg = targetDoseMg,
+            pillDoseMg = pkg.pillDoseMg,
+            divisibleHalf = pkg.divisibleHalf,
+            tieRule = tieRule
+        )
     }
 
     private companion object {
