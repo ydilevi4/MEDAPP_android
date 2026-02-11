@@ -20,7 +20,7 @@ import com.medapp.ui.main.MedAppRoot
 
 class MainActivity : ComponentActivity() {
     private var selectedTab by mutableStateOf(MainTab.TODAY)
-    private var openLowStockScreen by mutableStateOf(false)
+    private var openLowStockEventToken by mutableStateOf(0L)
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -29,7 +29,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         selectedTab = resolveInitialTab(intent)
-        openLowStockScreen = shouldOpenLowStock(intent)
+        openLowStockEventToken = resolveLowStockEventToken(intent, openLowStockEventToken)
         maybeRequestNotificationPermission()
 
         val container = AppContainer(applicationContext)
@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity() {
                 MedAppRoot(
                     container = container,
                     initialTab = selectedTab,
-                    openLowStockOnStart = openLowStockScreen
+                    openLowStockEventToken = openLowStockEventToken
                 )
             }
         }
@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         selectedTab = resolveInitialTab(intent)
-        openLowStockScreen = shouldOpenLowStock(intent)
+        openLowStockEventToken = resolveLowStockEventToken(intent, openLowStockEventToken)
     }
 
     private fun resolveInitialTab(intent: Intent?): MainTab {
@@ -59,8 +59,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun shouldOpenLowStock(intent: Intent?): Boolean {
-        return intent?.getStringExtra(ReminderConstants.EXTRA_OPEN_TAB) == ReminderConstants.TAB_LOW_STOCK
+    private fun resolveLowStockEventToken(intent: Intent?, currentToken: Long): Long {
+        val shouldOpenLowStock = intent?.getStringExtra(ReminderConstants.EXTRA_OPEN_TAB) == ReminderConstants.TAB_LOW_STOCK
+        if (!shouldOpenLowStock) return currentToken
+
+        val now = System.currentTimeMillis()
+        return if (now > currentToken) now else currentToken + 1L
     }
 
     private fun maybeRequestNotificationPermission() {
