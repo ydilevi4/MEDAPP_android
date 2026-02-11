@@ -31,6 +31,7 @@ class IntakeGenerationHelperTest {
         val medicine = medicine(
             createdAt = startDate,
             scheduleType = "FOOD_SLEEP",
+            intakesPerDay = 1,
             anchorsJson = "[\"BEFORE_BREAKFAST\"]",
             durationType = "DAYS",
             durationDays = 1
@@ -129,6 +130,7 @@ class IntakeGenerationHelperTest {
         val medicine = medicine(
             createdAt = startDate,
             scheduleType = "FOOD_SLEEP",
+            intakesPerDay = 1,
             anchorsJson = "[\"BREAKFAST_TIME\"]",
             durationType = "COURSES",
             courseDays = 2,
@@ -162,12 +164,77 @@ class IntakeGenerationHelperTest {
         assertTrue(generatedDates.none { it == LocalDate.of(2026, 1, 3) })
     }
 
+
+    @Test
+    fun `food sleep supports multiple anchors per day`() {
+        val startDate = LocalDate.of(2026, 1, 1)
+        val medicine = medicine(
+            createdAt = startDate,
+            scheduleType = "FOOD_SLEEP",
+            intakesPerDay = 2,
+            anchorsJson = "[\"BREAKFAST_TIME\",\"DINNER_TIME\"]",
+            durationType = "DAYS",
+            durationDays = 1
+        )
+
+        val generated = IntakeGenerationHelper.generatePlannedAtMillis(
+            IntakeGenerationHelper.GeneratePlanParams(
+                medicine = medicine,
+                settings = settings,
+                now = LocalDateTime.of(2026, 1, 1, 0, 0),
+                horizonDays = 2,
+                zoneId = zone,
+                pillCountPerIntake = 1.0,
+                alreadyPlannedPills = 0.0,
+                existingPlannedAtMillis = emptySet()
+            )
+        )
+
+        val expectedTimes = listOf(
+            LocalDateTime.of(2026, 1, 1, 8, 0),
+            LocalDateTime.of(2026, 1, 1, 19, 0)
+        ).map { it.atZone(zone).toInstant().toEpochMilli() }
+
+        assertEquals(expectedTimes, generated)
+    }
+
+    @Test
+    fun `food sleep handles 24_00 in settings without crash`() {
+        val startDate = LocalDate.of(2026, 1, 1)
+        val medicine = medicine(
+            createdAt = startDate,
+            scheduleType = "FOOD_SLEEP",
+            intakesPerDay = 1,
+            anchorsJson = "[\"BEFORE_SLEEP\"]",
+            durationType = "DAYS",
+            durationDays = 1
+        )
+
+        val settingsWith24 = settings.copy(sleepTime = "24:00")
+        val generated = IntakeGenerationHelper.generatePlannedAtMillis(
+            IntakeGenerationHelper.GeneratePlanParams(
+                medicine = medicine,
+                settings = settingsWith24,
+                now = LocalDateTime.of(2026, 1, 1, 0, 0),
+                horizonDays = 2,
+                zoneId = zone,
+                pillCountPerIntake = 1.0,
+                alreadyPlannedPills = 0.0,
+                existingPlannedAtMillis = emptySet()
+            )
+        )
+
+        val expected = LocalDateTime.of(2026, 1, 1, 0, 0).atZone(zone).toInstant().toEpochMilli()
+        assertEquals(listOf(expected), generated)
+    }
+
     private fun medicine(
         createdAt: LocalDate,
         scheduleType: String,
         anchorsJson: String = "[]",
         intervalHours: Int? = null,
         firstDoseTime: String? = null,
+        intakesPerDay: Int = 1,
         durationType: String,
         durationDays: Int? = null,
         courseDays: Int? = null,
@@ -181,6 +248,7 @@ class IntakeGenerationHelperTest {
             name = "Medicine",
             targetDoseMg = 100,
             scheduleType = scheduleType,
+            intakesPerDay = intakesPerDay,
             anchorsJson = anchorsJson,
             intervalHours = intervalHours,
             firstDoseTime = firstDoseTime,

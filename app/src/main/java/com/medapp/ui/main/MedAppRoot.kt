@@ -1,10 +1,12 @@
 package com.medapp.ui.main
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,6 +20,7 @@ import com.medapp.ui.settings.SettingsScreen
 import com.medapp.ui.settings.SettingsViewModel
 import com.medapp.ui.today.TodayScreen
 import com.medapp.ui.today.TodayViewModel
+import androidx.compose.runtime.collectAsState
 
 enum class MainTab(val title: String, val icon: String) {
     TODAY("Today", "🗓️"),
@@ -28,6 +31,7 @@ enum class MainTab(val title: String, val icon: String) {
 @Composable
 fun MedAppRoot(container: AppContainer) {
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.TODAY) }
+    var pendingTab by rememberSaveable { mutableStateOf<MainTab?>(null) }
 
     val medicinesViewModel: MedicinesViewModel = viewModel(
         factory = MedicinesViewModel.Factory(
@@ -47,9 +51,27 @@ fun MedAppRoot(container: AppContainer) {
     val settingsViewModel: SettingsViewModel = viewModel(
         factory = SettingsViewModel.Factory(
             container.database.settingsDao(),
-            container.ensureSettingsUseCase
+            container.ensureSettingsUseCase,
+            container.generateIntakesUseCase
         )
     )
+    val settingsUi by settingsViewModel.uiState.collectAsState()
+
+    if (pendingTab != null) {
+        AlertDialog(
+            onDismissRequest = { pendingTab = null },
+            title = { Text("Discard unsaved changes?") },
+            text = { Text("You have unsaved changes in Settings.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    settingsViewModel.discardChanges()
+                    selectedTab = pendingTab ?: selectedTab
+                    pendingTab = null
+                }) { Text("Discard") }
+            },
+            dismissButton = { TextButton(onClick = { pendingTab = null }) { Text("Stay") } }
+        )
+    }
 
     Scaffold(
         bottomBar = {
@@ -57,7 +79,13 @@ fun MedAppRoot(container: AppContainer) {
                 MainTab.entries.forEach { tab ->
                     NavigationBarItem(
                         selected = tab == selectedTab,
-                        onClick = { selectedTab = tab },
+                        onClick = {
+                            if (tab != selectedTab && selectedTab == MainTab.SETTINGS && settingsUi.isDirty) {
+                                pendingTab = tab
+                            } else if (tab != selectedTab) {
+                                selectedTab = tab
+                            }
+                        },
                         icon = { Text(tab.icon) },
                         label = { Text(tab.title) }
                     )

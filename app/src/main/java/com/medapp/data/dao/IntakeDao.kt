@@ -39,4 +39,7 @@ interface IntakeDao {
 
     @Query("SELECT COALESCE(SUM(pillCountPlanned), 0) FROM intakes WHERE medicineId = :medicineId")
     suspend fun getPlannedPillsSum(medicineId: String): Double
+
+    @Query("DELETE FROM intakes WHERE status = 'PLANNED' AND plannedAt >= :fromMillis")
+    suspend fun deletePlannedFrom(fromMillis: Long)
 }

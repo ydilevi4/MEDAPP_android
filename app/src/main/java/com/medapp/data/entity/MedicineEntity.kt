@@ -9,6 +9,7 @@ data class MedicineEntity(
     val name: String,
     val targetDoseMg: Int,
     val scheduleType: String,
+    val intakesPerDay: Int = 1,
     val anchorsJson: String,
     val intervalHours: Int?,
     val firstDoseTime: String?,
