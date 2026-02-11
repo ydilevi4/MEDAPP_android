@@ -83,6 +83,46 @@ class IntakeGenerationHelperTest {
         assertEquals(expectedTimes, generated)
     }
 
+
+
+    @Test
+    fun `pills count does not stop early when existing planned slots are present`() {
+        val startDate = LocalDate.of(2026, 1, 1)
+        val medicine = medicine(
+            createdAt = startDate,
+            scheduleType = "EVERY_N_HOURS",
+            intervalHours = 8,
+            firstDoseTime = "06:00",
+            durationType = "PILLS_COUNT",
+            totalPillsToTake = 8.0
+        )
+
+        val existingMillis = listOf(
+            LocalDateTime.of(2026, 1, 1, 6, 0),
+            LocalDateTime.of(2026, 1, 1, 14, 0)
+        ).map { it.atZone(zone).toInstant().toEpochMilli() }
+
+        val generated = IntakeGenerationHelper.generatePlannedAtMillis(
+            IntakeGenerationHelper.GeneratePlanParams(
+                medicine = medicine,
+                settings = settings,
+                now = LocalDateTime.of(2026, 1, 1, 0, 0),
+                horizonDays = 2,
+                zoneId = zone,
+                pillCountPerIntake = 2.0,
+                alreadyPlannedPills = 4.0,
+                existingPlannedAtMillis = existingMillis.toSet()
+            )
+        )
+
+        val expectedTimes = listOf(
+            LocalDateTime.of(2026, 1, 1, 22, 0),
+            LocalDateTime.of(2026, 1, 2, 6, 0)
+        ).map { it.atZone(zone).toInstant().toEpochMilli() }
+
+        assertEquals(expectedTimes, generated)
+    }
+
     @Test
     fun `courses apply taking and rest days`() {
         val startDate = LocalDate.of(2026, 1, 1)
@@ -132,7 +172,8 @@ class IntakeGenerationHelperTest {
         durationDays: Int? = null,
         courseDays: Int? = null,
         restDays: Int? = null,
-        cyclesCount: Int? = null
+        cyclesCount: Int? = null,
+        totalPillsToTake: Double? = null
     ): MedicineEntity {
         val createdAtMillis = LocalDateTime.of(createdAt, LocalTime.MIDNIGHT).atZone(zone).toInstant().toEpochMilli()
         return MedicineEntity(
@@ -145,7 +186,7 @@ class IntakeGenerationHelperTest {
             firstDoseTime = firstDoseTime,
             durationType = durationType,
             durationDays = durationDays,
-            totalPillsToTake = null,
+            totalPillsToTake = totalPillsToTake,
             courseDays = courseDays,
             restDays = restDays,
             cyclesCount = cyclesCount,
