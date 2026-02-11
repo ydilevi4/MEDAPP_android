@@ -5,8 +5,7 @@ import com.medapp.data.dao.MedicineDao
 import com.medapp.data.dao.PillPackageDao
 import com.medapp.data.entity.IntakeEntity
 import com.medapp.data.model.EqualDistanceRule
-import java.time.LocalDate
-import java.time.LocalTime
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.UUID
 
@@ -19,13 +18,14 @@ class GenerateIntakesUseCase(
 ) {
     suspend operator fun invoke() {
         val settings = ensureSettingsUseCase()
-        val breakfastTime = LocalTime.parse(settings.breakfastTime)
         val tieRule = EqualDistanceRule.valueOf(settings.equalDistanceRule)
         val zone = ZoneId.systemDefault()
+        val nowDateTime = LocalDateTime.now(zone)
+        val horizonEndDateTime = nowDateTime.plusDays(HORIZON_DAYS)
+        val fromMillis = nowDateTime.atZone(zone).toInstant().toEpochMilli()
+        val toMillis = horizonEndDateTime.atZone(zone).toInstant().toEpochMilli()
 
         val activeMedicines = medicineDao.getActiveMedicines()
-        val startDate = LocalDate.now()
-        val endDate = startDate.plusDays(90)
 
         for (medicine in activeMedicines) {
             val currentPackage = pillPackageDao.getCurrentForMedicine(medicine.id) ?: continue
@@ -36,33 +36,43 @@ class GenerateIntakesUseCase(
                 tieRule = tieRule
             )
 
-            val toInsert = mutableListOf<IntakeEntity>()
-            var date = startDate
-            while (!date.isAfter(endDate)) {
-                val plannedAt = date.atTime(breakfastTime).atZone(zone).toInstant().toEpochMilli()
-                val dayStart = date.atStartOfDay(zone).toInstant().toEpochMilli()
-                val dayEnd = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
-                val exists = intakeDao.countForMedicineInRange(medicine.id, dayStart, dayEnd) > 0
-                if (!exists) {
-                    val now = System.currentTimeMillis()
-                    toInsert += IntakeEntity(
-                        id = UUID.randomUUID().toString(),
-                        medicineId = medicine.id,
-                        plannedAt = plannedAt,
-                        status = "PLANNED",
-                        pillCountPlanned = dose.pillCount,
-                        realDoseMgPlanned = dose.realDoseMg,
-                        packageIdPlanned = currentPackage.id,
-                        googleTaskId = null,
-                        createdAt = now,
-                        updatedAt = now
-                    )
-                }
-                date = date.plusDays(1)
+            val existingPlannedAt = intakeDao.getPlannedAtInRange(medicine.id, fromMillis, toMillis).toSet()
+            val alreadyPlannedPills = intakeDao.getPlannedPillsSum(medicine.id)
+            val generatedMillis = IntakeGenerationHelper.generatePlannedAtMillis(
+                IntakeGenerationHelper.GeneratePlanParams(
+                    medicine = medicine,
+                    settings = settings,
+                    now = nowDateTime,
+                    horizonDays = HORIZON_DAYS,
+                    zoneId = zone,
+                    pillCountPerIntake = dose.pillCount,
+                    alreadyPlannedPills = alreadyPlannedPills,
+                    existingPlannedAtMillis = existingPlannedAt
+                )
+            )
+
+            if (generatedMillis.isEmpty()) continue
+
+            val createdAt = System.currentTimeMillis()
+            val toInsert = generatedMillis.map { plannedAt ->
+                IntakeEntity(
+                    id = UUID.randomUUID().toString(),
+                    medicineId = medicine.id,
+                    plannedAt = plannedAt,
+                    status = "PLANNED",
+                    pillCountPlanned = dose.pillCount,
+                    realDoseMgPlanned = dose.realDoseMg,
+                    packageIdPlanned = currentPackage.id,
+                    googleTaskId = null,
+                    createdAt = createdAt,
+                    updatedAt = createdAt
+                )
             }
-            if (toInsert.isNotEmpty()) {
-                intakeDao.insertAll(toInsert)
-            }
+            intakeDao.insertAll(toInsert)
         }
+    }
+
+    private companion object {
+        const val HORIZON_DAYS = 90L
     }
 }
