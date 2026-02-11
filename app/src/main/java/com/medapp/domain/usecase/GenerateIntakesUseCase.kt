@@ -56,9 +56,11 @@ class GenerateIntakesUseCase(
             var oldPillsRemainingForPlan = (transition?.oldPillsLeft ?: 0.0) - (transition?.oldPillsConsumed ?: 0.0)
 
             val toInsert = generatedMillis.map { plannedAt ->
-                val packageForIntake = if (oldPackage != null && oldPillsRemainingForPlan > 1e-9) oldPackage else currentPackage
-                val dose = doseFor(medicine.targetDoseMg, packageForIntake, tieRule)
-                if (packageForIntake.id == oldPackage?.id) {
+                val oldDose = oldPackage?.let { doseFor(medicine.targetDoseMg, it, tieRule) }
+                val canUseOldPackage = oldPackage != null && oldDose != null && oldPillsRemainingForPlan + 1e-9 >= oldDose.pillCount
+                val packageForIntake = if (canUseOldPackage) oldPackage else currentPackage
+                val dose = if (canUseOldPackage) oldDose!! else doseFor(medicine.targetDoseMg, currentPackage, tieRule)
+                if (canUseOldPackage) {
                     oldPillsRemainingForPlan = (oldPillsRemainingForPlan - dose.pillCount).coerceAtLeast(0.0)
                 }
                 IntakeEntity(

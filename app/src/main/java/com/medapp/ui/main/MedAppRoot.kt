@@ -33,17 +33,18 @@ enum class MainTab(val title: String, val icon: String) {
 }
 
 @Composable
-fun MedAppRoot(container: AppContainer, initialTab: MainTab = MainTab.TODAY, openLowStockOnStart: Boolean = false) {
+fun MedAppRoot(container: AppContainer, initialTab: MainTab = MainTab.TODAY, openLowStockEventToken: Long = 0L) {
     var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
     var pendingTab by rememberSaveable { mutableStateOf<MainTab?>(null) }
-    var showLowStock by rememberSaveable { mutableStateOf(openLowStockOnStart) }
+    var showLowStock by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(initialTab) {
         selectedTab = initialTab
     }
 
-    LaunchedEffect(openLowStockOnStart) {
-        if (openLowStockOnStart) showLowStock = true
+    // Token is a consumable event trigger; booleans are sticky and won't retrigger after first true.
+    LaunchedEffect(openLowStockEventToken) {
+        if (openLowStockEventToken != 0L) showLowStock = true
     }
 
     val medicinesViewModel: MedicinesViewModel = viewModel(
