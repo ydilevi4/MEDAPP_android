@@ -3,6 +3,7 @@ package com.medapp.domain.usecase
 import androidx.room.withTransaction
 import com.medapp.data.db.AppDatabase
 
+
 class MarkIntakeCompletedUseCase(
     private val database: AppDatabase
 ) {
@@ -19,30 +20,50 @@ class MarkIntakeCompletedUseCase(
                 intake.copy(status = "COMPLETED", updatedAt = now)
             )
 
-            if (transition != null && transition.oldPillsConsumed < transition.oldPillsLeft - 1e-9) {
-                val oldPackage = database.pillPackageDao().getById(transition.oldPackageId)
-                if (oldPackage != null) {
-                    database.pillPackageDao().update(
-                        oldPackage.copy(
-                            pillsRemaining = (oldPackage.pillsRemaining - intake.pillCountPlanned).coerceAtLeast(0.0),
-                            updatedAt = now
-                        )
-                    )
-                }
-                val updatedConsumed = (transition.oldPillsConsumed + intake.pillCountPlanned).coerceAtMost(transition.oldPillsLeft)
-                transitionDao.update(transition.copy(oldPillsConsumed = updatedConsumed))
-            } else {
-                val currentPackage = database.pillPackageDao().getById(intake.packageIdPlanned)
-                    ?: database.pillPackageDao().getCurrentForMedicine(intake.medicineId)
-                    ?: return@withTransaction
-
-                database.pillPackageDao().update(
-                    currentPackage.copy(
-                        pillsRemaining = (currentPackage.pillsRemaining - intake.pillCountPlanned).coerceAtLeast(0.0),
-                        updatedAt = now
-                    )
+            val plannedPillCount = intake.pillCountPlanned.coerceAtLeast(0.0)
+            val plannedPackage = database.pillPackageDao().getById(intake.packageIdPlanned)
+            if (plannedPackage == null) {
+                android.util.Log.w(
+                    "MarkIntakeCompletedUseCase",
+                    "Planned package ${intake.packageIdPlanned} not found for intake ${intake.id}; falling back to current package"
                 )
             }
+            val targetPackage = plannedPackage
+                ?: database.pillPackageDao().getCurrentForMedicine(intake.medicineId)
+                ?: return@withTransaction
+
+            database.pillPackageDao().update(
+                targetPackage.copy(
+                    pillsRemaining = (targetPackage.pillsRemaining - plannedPillCount).coerceAtLeast(0.0),
+                    updatedAt = now
+                )
+            )
+
+            val targetAccounting = completionAccounting(
+                targetPackageId = targetPackage.id,
+                oldPackageId = transition?.oldPackageId,
+                plannedPillCount = plannedPillCount
+            )
+            if (transition != null && targetAccounting.shouldUpdateOldConsumed) {
+                val updatedConsumed = (transition.oldPillsConsumed + plannedPillCount).coerceAtMost(transition.oldPillsLeft)
+                transitionDao.update(transition.copy(oldPillsConsumed = updatedConsumed))
+            }
+        }
+    }
+
+
+    internal data class CompletionAccounting(
+        val pillDelta: Double,
+        val shouldUpdateOldConsumed: Boolean
+    )
+
+    companion object {
+        internal fun completionAccounting(targetPackageId: String, oldPackageId: String?, plannedPillCount: Double): CompletionAccounting {
+            val pillDelta = plannedPillCount.coerceAtLeast(0.0)
+            return CompletionAccounting(
+                pillDelta = pillDelta,
+                shouldUpdateOldConsumed = oldPackageId != null && targetPackageId == oldPackageId
+            )
         }
     }
 }
