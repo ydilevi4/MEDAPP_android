@@ -8,6 +8,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -29,9 +30,13 @@ enum class MainTab(val title: String, val icon: String) {
 }
 
 @Composable
-fun MedAppRoot(container: AppContainer) {
-    var selectedTab by rememberSaveable { mutableStateOf(MainTab.TODAY) }
+fun MedAppRoot(container: AppContainer, initialTab: MainTab = MainTab.TODAY) {
+    var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
     var pendingTab by rememberSaveable { mutableStateOf<MainTab?>(null) }
+
+    LaunchedEffect(initialTab) {
+        selectedTab = initialTab
+    }
 
     val medicinesViewModel: MedicinesViewModel = viewModel(
         factory = MedicinesViewModel.Factory(
