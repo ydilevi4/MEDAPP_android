@@ -66,7 +66,9 @@ fun MedAppRoot(container: AppContainer, initialTab: MainTab = MainTab.TODAY, ope
         factory = SettingsViewModel.Factory(
             container.database.settingsDao(),
             container.ensureSettingsUseCase,
-            container.generateIntakesUseCase
+            container.generateIntakesUseCase,
+            container.googleSignInManager,
+            container.tasksListBootstrapUseCase
         )
     )
     val lowStockViewModel: LowStockViewModel = viewModel(

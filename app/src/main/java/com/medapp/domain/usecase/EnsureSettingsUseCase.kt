@@ -21,7 +21,10 @@ class EnsureSettingsUseCase(
             equalDistanceRule = EqualDistanceRule.PREFER_HIGHER.name,
             lowStockWarningEnabled = true,
             lowStockWarningDays = 30,
-            language = Language.EN.name
+            language = Language.EN.name,
+            googleAccountEmail = null,
+            googleTasksListId = null,
+            googleAuthConnectedAt = null
         )
         settingsDao.upsert(defaults)
         return defaults

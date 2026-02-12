@@ -14,7 +14,10 @@ data class SettingsEntity(
     val equalDistanceRule: String,
     val lowStockWarningEnabled: Boolean,
     val lowStockWarningDays: Int,
-    val language: String
+    val language: String,
+    val googleAccountEmail: String? = null,
+    val googleTasksListId: String? = null,
+    val googleAuthConnectedAt: Long? = null
 ) {
     companion object {
         const val SINGLETON_ID = "singleton"
