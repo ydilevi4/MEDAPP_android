@@ -28,6 +28,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun SettingsScreen(modifier: Modifier = Modifier, viewModel: SettingsViewModel) {
@@ -106,11 +109,20 @@ fun SettingsScreen(modifier: Modifier = Modifier, viewModel: SettingsViewModel) 
                 ) { Text("Connect Google") }
             } else {
                 Text("Connected: ${editable.googleAccountEmail}")
+                Button(enabled = !uiState.isGoogleLoading, onClick = { viewModel.syncGoogleTasksNow() }) {
+                    Text("Sync now")
+                }
                 Button(enabled = !uiState.isGoogleLoading, onClick = { viewModel.disconnectGoogle() }) {
                     Text("Disconnect")
                 }
             }
             Text(if (editable.googleTasksListId == null) "Tasks list not created" else "Tasks list connected")
+            val lastSyncText = editable.googleLastSyncAt?.let {
+                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                    .withZone(ZoneId.systemDefault())
+                    .format(Instant.ofEpochMilli(it))
+            } ?: "never"
+            Text("Last sync: $lastSyncText")
 
             Text("Base times")
             OutlinedTextField(
