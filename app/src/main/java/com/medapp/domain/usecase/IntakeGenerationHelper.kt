@@ -43,7 +43,7 @@ object IntakeGenerationHelper {
                 var date = maxOf(startDate, params.now.toLocalDate())
                 while (!date.isAfter(horizonEnd.toLocalDate())) {
                     if (isTakingDay(params.medicine, date, startDate)) {
-                        val times = anchors.mapNotNull { anchorToLocalTime(it, params.settings) }.sorted()
+                        val times = anchors.mapNotNull { IntakeScheduleResolver.resolveAnchorTime(it, params.settings) }.sorted()
                         for (time in times) {
                             val plannedDateTime = LocalDateTime.of(date, time)
                             if (plannedDateTime.isBefore(params.now)) continue
@@ -102,12 +102,17 @@ object IntakeGenerationHelper {
             }
 
             DurationType.PILLS_COUNT -> false
-            DurationType.COURSES -> false
+            DurationType.COURSES -> {
+                val days = medicine.durationDays ?: return false
+                val durationEndDate = startDate.plusDays((days - 1).coerceAtLeast(0).toLong())
+                date.isAfter(durationEndDate)
+            }
         }
     }
 
     private fun isPillsCountExceeded(medicine: MedicineEntity, plannedPills: Double, perIntakePills: Double): Boolean {
-        if (DurationType.valueOf(medicine.durationType) != DurationType.PILLS_COUNT) return false
+        val type = DurationType.valueOf(medicine.durationType)
+        if (type != DurationType.PILLS_COUNT && type != DurationType.COURSES) return false
         val total = medicine.totalPillsToTake ?: return false
         return plannedPills + perIntakePills > total + 1e-9
     }
@@ -138,23 +143,4 @@ object IntakeGenerationHelper {
         }
     }
 
-    private fun anchorToLocalTime(anchor: String, settings: SettingsEntity): LocalTime? {
-        val wake = TimeParser.parseLocalTimeSafe(settings.wakeTime, LocalTime.of(7, 0))
-        val breakfast = TimeParser.parseLocalTimeSafe(settings.breakfastTime, LocalTime.of(8, 0))
-        val lunch = TimeParser.parseLocalTimeSafe(settings.lunchTime, LocalTime.of(13, 0))
-        val dinner = TimeParser.parseLocalTimeSafe(settings.dinnerTime, LocalTime.of(19, 0))
-        val sleep = TimeParser.parseLocalTimeSafe(settings.sleepTime, LocalTime.of(23, 0))
-
-        return when (anchor) {
-            "AFTER_WAKE" -> wake
-            "BEFORE_BREAKFAST" -> breakfast.minusMinutes(30)
-            "BREAKFAST_TIME" -> breakfast
-            "BEFORE_LUNCH" -> lunch.minusMinutes(30)
-            "LUNCH_TIME" -> lunch
-            "BEFORE_DINNER" -> dinner.minusMinutes(30)
-            "DINNER_TIME" -> dinner
-            "BEFORE_SLEEP" -> sleep
-            else -> null
-        }
-    }
 }

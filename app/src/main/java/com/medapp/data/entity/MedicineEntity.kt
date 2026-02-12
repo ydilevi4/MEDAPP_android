@@ -19,6 +19,7 @@ data class MedicineEntity(
     val courseDays: Int?,
     val restDays: Int?,
     val cyclesCount: Int?,
+    val notes: String?,
     val isActive: Boolean,
     val createdAt: Long,
     val updatedAt: Long

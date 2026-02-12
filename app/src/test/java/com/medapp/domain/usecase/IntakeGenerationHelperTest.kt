@@ -228,6 +228,32 @@ class IntakeGenerationHelperTest {
         assertEquals(listOf(expected), generated)
     }
 
+
+
+    @Test
+    fun `custom exact time anchor is supported`() {
+        val medicine = medicine(
+            createdAt = LocalDate.of(2026, 1, 1),
+            scheduleType = "FOOD_SLEEP",
+            anchorsJson = "[\"CUSTOM_TIME:10:15\"]",
+            durationType = "DAYS",
+            durationDays = 1
+        )
+        val generated = IntakeGenerationHelper.generatePlannedAtMillis(
+            IntakeGenerationHelper.GeneratePlanParams(
+                medicine = medicine,
+                settings = settings,
+                now = LocalDateTime.of(2026, 1, 1, 0, 0),
+                horizonDays = 1,
+                zoneId = zone,
+                pillCountPerIntake = 1.0,
+                alreadyPlannedPills = 0.0,
+                existingPlannedAtMillis = emptySet()
+            )
+        )
+        val expected = LocalDateTime.of(2026, 1, 1, 10, 15).atZone(zone).toInstant().toEpochMilli()
+        assertEquals(listOf(expected), generated)
+    }
     private fun medicine(
         createdAt: LocalDate,
         scheduleType: String,
@@ -258,6 +284,7 @@ class IntakeGenerationHelperTest {
             courseDays = courseDays,
             restDays = restDays,
             cyclesCount = cyclesCount,
+            notes = null,
             isActive = true,
             createdAt = createdAtMillis,
             updatedAt = createdAtMillis

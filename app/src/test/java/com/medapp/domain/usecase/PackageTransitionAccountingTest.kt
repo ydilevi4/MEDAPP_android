@@ -91,6 +91,7 @@ class PackageTransitionAccountingTest {
             courseDays = null,
             restDays = null,
             cyclesCount = null,
+            notes = null,
             isActive = true,
             createdAt = now,
             updatedAt = now
