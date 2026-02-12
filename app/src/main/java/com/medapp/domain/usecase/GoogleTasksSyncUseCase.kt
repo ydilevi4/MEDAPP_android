@@ -116,8 +116,20 @@ class GoogleTasksSyncUseCase(
             remoteTask = googleTasksService.getTask(accessToken, listId, taskId)
         }
 
+        if (remoteTask == null) {
+            updateIntakeGoogleTaskId(currentIntake, null)
+            currentIntake = currentIntake.copy(googleTaskId = null)
+
+            val recreated = googleTasksService.insertTask(accessToken, listId, payload)
+            updateIntakeGoogleTaskId(currentIntake, recreated.id)
+            currentIntake = currentIntake.copy(googleTaskId = recreated.id)
+            remoteTask = recreated
+        }
+
+        val activeTaskId = currentIntake.googleTaskId ?: remoteTask.id
+
         if (currentIntake.status == IntakeStatus.COMPLETED.name && remoteTask?.status != "completed") {
-            googleTasksService.patchTask(accessToken, listId, taskId, payload)
+            googleTasksService.patchTask(accessToken, listId, activeTaskId, payload)
         }
 
         if (currentIntake.status == IntakeStatus.PLANNED.name && remoteTask?.status == "completed") {
@@ -125,7 +137,7 @@ class GoogleTasksSyncUseCase(
         }
     }
 
-    private suspend fun updateIntakeGoogleTaskId(intake: IntakeEntity, taskId: String) {
+    private suspend fun updateIntakeGoogleTaskId(intake: IntakeEntity, taskId: String?) {
         database.withTransaction {
             val latest = database.intakeDao().getById(intake.id) ?: return@withTransaction
             database.intakeDao().update(
