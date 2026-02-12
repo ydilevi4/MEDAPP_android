@@ -3,6 +3,8 @@ package com.medapp.domain.usecase
 import com.medapp.data.entity.SettingsEntity
 import com.medapp.domain.util.TimeParser
 import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 
 object IntakeScheduleResolver {
     private const val CUSTOM_PREFIX = "CUSTOM_TIME:"
@@ -15,7 +17,7 @@ object IntakeScheduleResolver {
         val sleep = TimeParser.parseLocalTimeSafe(settings.sleepTime, LocalTime.of(23, 0))
 
         return when {
-            anchor.startsWith(CUSTOM_PREFIX) -> TimeParser.parseLocalTime(anchor.removePrefix(CUSTOM_PREFIX))
+            anchor.startsWith(CUSTOM_PREFIX) -> parseLocalTimeOrNull(anchor.removePrefix(CUSTOM_PREFIX))
             anchor == "AFTER_WAKE" -> wake
             anchor == "BEFORE_BREAKFAST" -> breakfast.minusMinutes(30)
             anchor == "BREAKFAST_TIME" -> breakfast
@@ -29,4 +31,10 @@ object IntakeScheduleResolver {
     }
 
     fun customAnchor(time: String): String = "$CUSTOM_PREFIX${TimeParser.normalizeTimeInput(time)}"
+
+    private fun parseLocalTimeOrNull(value: String): LocalTime? = try {
+        LocalTime.parse(value.trim(), DateTimeFormatter.ofPattern("H:mm"))
+    } catch (_: DateTimeParseException) {
+        null
+    }
 }

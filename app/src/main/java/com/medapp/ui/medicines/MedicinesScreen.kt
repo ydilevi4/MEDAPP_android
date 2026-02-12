@@ -30,8 +30,8 @@ import com.medapp.domain.usecase.IntakeScheduleResolver
 import com.medapp.domain.util.TimeParser
 import java.time.LocalTime
 
-private enum class BasePeriod { AFTER_WAKE, BREAKFAST, LUNCH, DINNER, BEFORE_SLEEP, EXACT_TIME }
-private enum class MealRelation { BEFORE, DURING, AFTER }
+internal enum class BasePeriod { AFTER_WAKE, BREAKFAST, LUNCH, DINNER, BEFORE_SLEEP, EXACT_TIME }
+internal enum class MealRelation { BEFORE, DURING, AFTER }
 
 data class IntakeRow(val base: BasePeriod, val relation: MealRelation = MealRelation.DURING, val customTime: String = "08:00")
 
@@ -212,7 +212,8 @@ private fun CreateMedicineWizard(
             if (step < 6) Button(enabled = stepError == null, onClick = { step++ }) { Text("Next") }
             else Button(onClick = {
                 val n = intakesPerDayText.toIntOrNull() ?: 1
-                val sortedRows = intakeRows.take(n).sortedBy { resolveRowTime(it, settings ?: return@Button) ?: LocalTime.MAX }
+                val currentSettings = settings ?: return@Button
+                val sortedRows = intakeRows.take(n).sortedBy { resolveRowTime(it, currentSettings) ?: LocalTime.MAX }
                 onComplete(
                     MedicinesViewModel.WizardInput(
                         name = name.trim(),
@@ -242,6 +243,7 @@ private fun CreateMedicineWizard(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun IntakeRowEditor(row: IntakeRow, onChange: (IntakeRow) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
