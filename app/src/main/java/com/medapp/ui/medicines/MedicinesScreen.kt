@@ -30,8 +30,8 @@ import com.medapp.domain.usecase.IntakeScheduleResolver
 import com.medapp.domain.util.TimeParser
 import java.time.LocalTime
 
-internal enum class BasePeriod { AFTER_WAKE, BREAKFAST, LUNCH, DINNER, BEFORE_SLEEP, EXACT_TIME }
-internal enum class MealRelation { BEFORE, DURING, AFTER }
+enum class BasePeriod { AFTER_WAKE, BREAKFAST, LUNCH, DINNER, BEFORE_SLEEP, EXACT_TIME }
+enum class MealRelation { BEFORE, DURING, AFTER }
 
 data class IntakeRow(val base: BasePeriod, val relation: MealRelation = MealRelation.DURING, val customTime: String = "08:00")
 
