@@ -55,11 +55,18 @@ class GenerateIntakesUseCase(
             val createdAt = System.currentTimeMillis()
             var oldPillsRemainingForPlan = (transition?.oldPillsLeft ?: 0.0) - (transition?.oldPillsConsumed ?: 0.0)
 
-            val toInsert = generatedMillis.map { plannedAt ->
+            val toInsert = generatedMillis.mapNotNull { plannedAt ->
                 val oldDose = oldPackage?.let { doseFor(medicine.targetDoseMg, it, tieRule) }
                 val canUseOldPackage = oldPackage != null && oldDose != null && oldPillsRemainingForPlan + 1e-9 >= oldDose.pillCount
                 val packageForIntake = if (canUseOldPackage) oldPackage else currentPackage
-                val dose = if (canUseOldPackage) oldDose!! else doseFor(medicine.targetDoseMg, currentPackage, tieRule)
+                val pkg = packageForIntake ?: currentPackage
+                val dose = if (canUseOldPackage) oldDose else doseFor(medicine.targetDoseMg, pkg, tieRule)
+
+                if (dose == null) {
+                    // TODO: Surface this to diagnostics if it ever happens. For now, skip unsafe generation.
+                    return@mapNotNull null
+                }
+
                 if (canUseOldPackage) {
                     oldPillsRemainingForPlan = (oldPillsRemainingForPlan - dose.pillCount).coerceAtLeast(0.0)
                 }
@@ -70,13 +77,16 @@ class GenerateIntakesUseCase(
                     status = "PLANNED",
                     pillCountPlanned = dose.pillCount,
                     realDoseMgPlanned = dose.realDoseMg,
-                    packageIdPlanned = packageForIntake.id,
+                    packageIdPlanned = pkg.id,
                     googleTaskId = null,
                     createdAt = createdAt,
                     updatedAt = createdAt
                 )
             }
-            intakeDao.insertAll(toInsert)
+
+            if (toInsert.isNotEmpty()) {
+                intakeDao.insertAll(toInsert)
+            }
         }
     }
 

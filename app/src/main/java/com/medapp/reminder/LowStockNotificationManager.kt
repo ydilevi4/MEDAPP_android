@@ -51,7 +51,7 @@ class LowStockNotificationManager(
         )
 
         val notification = NotificationCompat.Builder(context, ReminderConstants.LOW_STOCK_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_pill)
             .setContentTitle("Medicines running low")
             .setContentText(short)
             .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
