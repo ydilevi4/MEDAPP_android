@@ -23,6 +23,15 @@ interface IntakeDao {
 
     @Query(
         """
+        SELECT * FROM intakes
+        WHERE plannedAt BETWEEN :fromMillis AND :toMillis
+        ORDER BY plannedAt ASC
+        """
+    )
+    suspend fun getInWindow(fromMillis: Long, toMillis: Long): List<IntakeEntity>
+
+    @Query(
+        """
         SELECT i.id, m.name AS medicineName, i.plannedAt, i.status, i.pillCountPlanned, i.realDoseMgPlanned, i.packageIdPlanned
         FROM intakes i
         INNER JOIN medicines m ON m.id = i.medicineId

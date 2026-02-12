@@ -15,7 +15,7 @@ import kotlinx.coroutines.withContext
 class GoogleSignInManager(
     context: Context
 ) {
-    private val appContext = context.applicationContext
+    val appContext = context.applicationContext
     private val signInClient: GoogleSignInClient
 
     init {

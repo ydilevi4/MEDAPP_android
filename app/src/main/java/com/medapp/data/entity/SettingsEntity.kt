@@ -17,7 +17,8 @@ data class SettingsEntity(
     val language: String,
     val googleAccountEmail: String? = null,
     val googleTasksListId: String? = null,
-    val googleAuthConnectedAt: Long? = null
+    val googleAuthConnectedAt: Long? = null,
+    val googleLastSyncAt: Long? = null
 ) {
     companion object {
         const val SINGLETON_ID = "singleton"
