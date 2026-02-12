@@ -8,6 +8,7 @@ import com.medapp.data.dao.SettingsDao
 import com.medapp.data.entity.SettingsEntity
 import com.medapp.domain.usecase.EnsureSettingsUseCase
 import com.medapp.domain.usecase.GenerateIntakesUseCase
+import com.medapp.domain.usecase.GoogleTasksSyncUseCase
 import com.medapp.domain.usecase.TasksListBootstrapUseCase
 import com.medapp.domain.util.TimeParser
 import com.medapp.integration.google.GoogleAuthException
@@ -27,7 +28,8 @@ class SettingsViewModel(
     private val ensureSettingsUseCase: EnsureSettingsUseCase,
     private val generateIntakesUseCase: GenerateIntakesUseCase,
     private val googleSignInManager: GoogleSignInManager,
-    private val tasksListBootstrapUseCase: TasksListBootstrapUseCase
+    private val tasksListBootstrapUseCase: TasksListBootstrapUseCase,
+    private val googleTasksSyncUseCase: GoogleTasksSyncUseCase
 ) : ViewModel() {
 
     data class EditableSettings(
@@ -42,7 +44,8 @@ class SettingsViewModel(
         val language: String,
         val googleAccountEmail: String?,
         val googleTasksListId: String?,
-        val googleAuthConnectedAt: Long?
+        val googleAuthConnectedAt: Long?,
+        val googleLastSyncAt: Long?
     ) {
         companion object {
             fun from(entity: SettingsEntity): EditableSettings = EditableSettings(
@@ -57,7 +60,8 @@ class SettingsViewModel(
                 language = entity.language,
                 googleAccountEmail = entity.googleAccountEmail,
                 googleTasksListId = entity.googleTasksListId,
-                googleAuthConnectedAt = entity.googleAuthConnectedAt
+                googleAuthConnectedAt = entity.googleAuthConnectedAt,
+                googleLastSyncAt = entity.googleLastSyncAt
             )
         }
 
@@ -73,7 +77,8 @@ class SettingsViewModel(
             language = language,
             googleAccountEmail = googleAccountEmail,
             googleTasksListId = googleTasksListId,
-            googleAuthConnectedAt = googleAuthConnectedAt
+            googleAuthConnectedAt = googleAuthConnectedAt,
+            googleLastSyncAt = googleLastSyncAt
         )
     }
 
@@ -164,7 +169,8 @@ class SettingsViewModel(
                     current.copy(
                         googleAccountEmail = null,
                         googleTasksListId = null,
-                        googleAuthConnectedAt = null
+                        googleAuthConnectedAt = null,
+                        googleLastSyncAt = null
                     )
                 )
             }.onSuccess {
@@ -181,6 +187,17 @@ class SettingsViewModel(
 
     fun consumeSnackbar() {
         _uiState.update { it.copy(snackbarMessage = null) }
+    }
+
+    fun syncGoogleTasksNow() {
+        viewModelScope.launch {
+            val message = when (val result = googleTasksSyncUseCase()) {
+                is GoogleTasksSyncUseCase.Result.Success -> "Sync completed"
+                is GoogleTasksSyncUseCase.Result.Skipped -> result.reason
+                is GoogleTasksSyncUseCase.Result.Error -> result.reason
+            }
+            _uiState.update { it.copy(snackbarMessage = message) }
+        }
     }
 
     fun updateTime(field: String, value: String) {
@@ -265,7 +282,8 @@ class SettingsViewModel(
         private val ensureSettingsUseCase: EnsureSettingsUseCase,
         private val generateIntakesUseCase: GenerateIntakesUseCase,
         private val googleSignInManager: GoogleSignInManager,
-        private val tasksListBootstrapUseCase: TasksListBootstrapUseCase
+        private val tasksListBootstrapUseCase: TasksListBootstrapUseCase,
+        private val googleTasksSyncUseCase: GoogleTasksSyncUseCase
     ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             return SettingsViewModel(
@@ -273,7 +291,8 @@ class SettingsViewModel(
                 ensureSettingsUseCase,
                 generateIntakesUseCase,
                 googleSignInManager,
-                tasksListBootstrapUseCase
+                tasksListBootstrapUseCase,
+                googleTasksSyncUseCase
             ) as T
         }
     }

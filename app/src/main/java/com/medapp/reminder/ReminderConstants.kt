@@ -9,6 +9,8 @@ object ReminderConstants {
     const val LOW_STOCK_CHANNEL_NAME = "Low stock warnings"
     const val LOW_STOCK_WORK_NAME = "low_stock_worker"
     const val LOW_STOCK_START_CHECK_WORK_NAME = "low_stock_check_on_start"
+    const val GOOGLE_TASKS_SYNC_WORK_NAME = "google_tasks_sync_worker"
+    const val GOOGLE_TASKS_SYNC_START_WORK_NAME = "google_tasks_sync_on_start"
 
     const val NOTIFICATION_ID = 1001
     const val LOW_STOCK_NOTIFICATION_ID = 1002

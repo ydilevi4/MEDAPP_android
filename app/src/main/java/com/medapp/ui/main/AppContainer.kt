@@ -8,6 +8,7 @@ import com.medapp.domain.usecase.CreateMedicineUseCase
 import com.medapp.domain.usecase.DoseCalculationUseCase
 import com.medapp.domain.usecase.EnsureSettingsUseCase
 import com.medapp.domain.usecase.GenerateIntakesUseCase
+import com.medapp.domain.usecase.GoogleTasksSyncUseCase
 import com.medapp.domain.usecase.MarkIntakeCompletedUseCase
 import com.medapp.domain.usecase.TasksListBootstrapUseCase
 import com.medapp.integration.google.GoogleSignInManager
@@ -33,6 +34,12 @@ class AppContainer(context: Context) {
     val tasksListBootstrapUseCase = TasksListBootstrapUseCase(googleTasksService)
 
     val markIntakeCompletedUseCase = MarkIntakeCompletedUseCase(database)
+    val googleTasksSyncUseCase = GoogleTasksSyncUseCase(
+        database = database,
+        googleTasksService = googleTasksService,
+        googleSignInManager = googleSignInManager,
+        markIntakeCompletedUseCase = markIntakeCompletedUseCase
+    )
     val confirmPackagePurchaseUseCase = ConfirmPackagePurchaseUseCase(database, generateIntakesUseCase)
     val doseUseCase = doseCalculationUseCase
 }
