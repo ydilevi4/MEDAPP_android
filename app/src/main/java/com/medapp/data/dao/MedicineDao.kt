@@ -13,7 +13,7 @@ interface MedicineDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(medicine: MedicineEntity)
 
-    @Query("SELECT id, name, targetDoseMg, isActive FROM medicines ORDER BY createdAt DESC")
+    @Query("SELECT id, name, targetDoseMg, notes, isActive FROM medicines ORDER BY createdAt DESC")
     fun observeMedicines(): Flow<List<MedicineListItem>>
 
     @Query("SELECT * FROM medicines WHERE isActive = 1")

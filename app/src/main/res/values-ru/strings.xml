@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">MedApp</string>
+    <string name="course_plan">План курса</string>
+    <string name="how_course_limited">Чем ограничен курс?</string>
+    <string name="by_days">По дням</string>
+    <string name="by_total_pills">По общему числу таблеток</string>
+    <string name="is_repeating">Курс повторяется?</string>
+    <string name="one_time_course">Разовый курс</string>
+    <string name="repeating_course">Повторяющийся курс</string>
+    <string name="comment_notes">Комментарий / Заметки</string>
+    <string name="duplicate_times_not_allowed">Одинаковое время приёма недопустимо</string>
+</resources>
