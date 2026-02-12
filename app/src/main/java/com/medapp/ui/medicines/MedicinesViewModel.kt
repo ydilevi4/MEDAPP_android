@@ -54,7 +54,7 @@ class MedicinesViewModel(
                             name = input.name,
                             targetDoseMg = input.targetDoseMg,
                             scheduleType = input.scheduleType,
-                            intakesPerDay = input.intakesPerDay.coerceIn(1, 6),
+                            intakesPerDay = input.intakesPerDay.coerceIn(1, 12),
                             anchorsJson = AnchorJsonHelper.encode(input.anchors),
                             intervalHours = input.intervalHours,
                             firstDoseTime = input.firstDoseTime,
@@ -64,6 +64,7 @@ class MedicinesViewModel(
                             courseDays = input.courseDays,
                             restDays = input.restDays,
                             cyclesCount = input.cyclesCount,
+                            notes = input.notes,
                             isActive = true,
                             createdAt = now,
                             updatedAt = now
@@ -96,6 +97,9 @@ class MedicinesViewModel(
         return EqualDistanceRule.valueOf(settings.equalDistanceRule)
     }
 
+
+
+    suspend fun loadSettings() = ensureSettingsUseCase()
     data class WizardInput(
         val name: String,
         val targetDoseMg: Int,
@@ -114,7 +118,8 @@ class MedicinesViewModel(
         val totalPillsToTake: Double?,
         val courseDays: Int?,
         val restDays: Int?,
-        val cyclesCount: Int?
+        val cyclesCount: Int?,
+        val notes: String?
     )
 
     class Factory(

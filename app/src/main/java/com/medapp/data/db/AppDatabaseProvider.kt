@@ -13,7 +13,7 @@ object AppDatabaseProvider {
                 context.applicationContext,
                 AppDatabase::class.java,
                 "medapp.db"
-            ).fallbackToDestructiveMigration().build().also {
+            ).addMigrations(DbMigrations.MIGRATION_4_5).build().also {
                 instance = it
             }
         }

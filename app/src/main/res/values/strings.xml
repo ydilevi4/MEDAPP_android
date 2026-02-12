@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">MedApp</string>
+    <string name="course_plan">Course plan</string>
+    <string name="how_course_limited">How is the course limited?</string>
+    <string name="by_days">By days</string>
+    <string name="by_total_pills">By total pills</string>
+    <string name="is_repeating">Is it repeating?</string>
+    <string name="one_time_course">One-time course</string>
+    <string name="repeating_course">Repeating course</string>
+    <string name="comment_notes">Comment / Notes</string>
+    <string name="duplicate_times_not_allowed">Duplicate times are not allowed</string>
+</resources>
