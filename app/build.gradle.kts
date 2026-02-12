@@ -64,6 +64,9 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.play.services.auth)
+    implementation(libs.okhttp)
+    implementation(libs.gson)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     debugImplementation(libs.androidx.compose.ui.tooling)

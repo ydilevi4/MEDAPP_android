@@ -1,6 +1,9 @@
 package com.medapp.ui.settings
 
+import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,11 +35,25 @@ fun SettingsScreen(modifier: Modifier = Modifier, viewModel: SettingsViewModel) 
     val editable = uiState.editable
     val snackbarHostState = remember { SnackbarHostState() }
     var showDiscardDialog by remember { mutableStateOf(false) }
+    val googleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            viewModel.connectGoogle(result.data)
+        } else {
+            viewModel.onGoogleSignInFailed()
+        }
+    }
 
     if (uiState.showSavedMessage) {
         LaunchedEffect(uiState.showSavedMessage) {
             snackbarHostState.showSnackbar("Settings saved")
             viewModel.dismissSavedMessage()
+        }
+    }
+
+    uiState.snackbarMessage?.let { message ->
+        LaunchedEffect(message) {
+            snackbarHostState.showSnackbar(message)
+            viewModel.consumeSnackbar()
         }
     }
 
@@ -81,6 +98,20 @@ fun SettingsScreen(modifier: Modifier = Modifier, viewModel: SettingsViewModel) 
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            Text("Google")
+            if (editable.googleAccountEmail == null) {
+                Button(
+                    enabled = !uiState.isGoogleLoading,
+                    onClick = { googleLauncher.launch(viewModel.googleSignInIntent()) }
+                ) { Text("Connect Google") }
+            } else {
+                Text("Connected: ${editable.googleAccountEmail}")
+                Button(enabled = !uiState.isGoogleLoading, onClick = { viewModel.disconnectGoogle() }) {
+                    Text("Disconnect")
+                }
+            }
+            Text(if (editable.googleTasksListId == null) "Tasks list not created" else "Tasks list connected")
+
             Text("Base times")
             OutlinedTextField(
                 value = editable.wakeTime,
