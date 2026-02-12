@@ -100,6 +100,7 @@ class SettingsViewModel(
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+    private var isSyncing = false
 
     init {
         viewModelScope.launch {
@@ -191,12 +192,18 @@ class SettingsViewModel(
 
     fun syncGoogleTasksNow() {
         viewModelScope.launch {
-            val message = when (val result = googleTasksSyncUseCase()) {
-                is GoogleTasksSyncUseCase.Result.Success -> "Sync completed"
-                is GoogleTasksSyncUseCase.Result.Skipped -> result.reason
-                is GoogleTasksSyncUseCase.Result.Error -> result.reason
+            if (isSyncing) return@launch
+            isSyncing = true
+            try {
+                val message = when (val result = googleTasksSyncUseCase()) {
+                    is GoogleTasksSyncUseCase.Result.Success -> "Sync completed"
+                    is GoogleTasksSyncUseCase.Result.Skipped -> result.reason
+                    is GoogleTasksSyncUseCase.Result.Error -> result.reason
+                }
+                _uiState.update { it.copy(snackbarMessage = message) }
+            } finally {
+                isSyncing = false
             }
-            _uiState.update { it.copy(snackbarMessage = message) }
         }
     }
 
