@@ -1,5 +1,6 @@
 package com.medapp.ui.settings
 
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -7,18 +8,26 @@ import com.medapp.data.dao.SettingsDao
 import com.medapp.data.entity.SettingsEntity
 import com.medapp.domain.usecase.EnsureSettingsUseCase
 import com.medapp.domain.usecase.GenerateIntakesUseCase
+import com.medapp.domain.usecase.TasksListBootstrapUseCase
 import com.medapp.domain.util.TimeParser
+import com.medapp.integration.google.GoogleAuthException
+import com.medapp.integration.google.GoogleSignInManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.IOException
 
 class SettingsViewModel(
     private val settingsDao: SettingsDao,
     private val ensureSettingsUseCase: EnsureSettingsUseCase,
-    private val generateIntakesUseCase: GenerateIntakesUseCase
+    private val generateIntakesUseCase: GenerateIntakesUseCase,
+    private val googleSignInManager: GoogleSignInManager,
+    private val tasksListBootstrapUseCase: TasksListBootstrapUseCase
 ) : ViewModel() {
 
     data class EditableSettings(
@@ -30,7 +39,10 @@ class SettingsViewModel(
         val equalDistanceRule: String,
         val lowStockWarningEnabled: Boolean,
         val lowStockWarningDays: Int,
-        val language: String
+        val language: String,
+        val googleAccountEmail: String?,
+        val googleTasksListId: String?,
+        val googleAuthConnectedAt: Long?
     ) {
         companion object {
             fun from(entity: SettingsEntity): EditableSettings = EditableSettings(
@@ -42,7 +54,10 @@ class SettingsViewModel(
                 equalDistanceRule = entity.equalDistanceRule,
                 lowStockWarningEnabled = entity.lowStockWarningEnabled,
                 lowStockWarningDays = entity.lowStockWarningDays,
-                language = entity.language
+                language = entity.language,
+                googleAccountEmail = entity.googleAccountEmail,
+                googleTasksListId = entity.googleTasksListId,
+                googleAuthConnectedAt = entity.googleAuthConnectedAt
             )
         }
 
@@ -55,7 +70,10 @@ class SettingsViewModel(
             equalDistanceRule = equalDistanceRule,
             lowStockWarningEnabled = lowStockWarningEnabled,
             lowStockWarningDays = lowStockWarningDays,
-            language = language
+            language = language,
+            googleAccountEmail = googleAccountEmail,
+            googleTasksListId = googleTasksListId,
+            googleAuthConnectedAt = googleAuthConnectedAt
         )
     }
 
@@ -64,7 +82,9 @@ class SettingsViewModel(
         val persisted: SettingsEntity? = null,
         val editable: EditableSettings? = null,
         val timeErrors: Map<String, String> = emptyMap(),
-        val showSavedMessage: Boolean = false
+        val showSavedMessage: Boolean = false,
+        val isGoogleLoading: Boolean = false,
+        val snackbarMessage: String? = null
     ) {
         val isDirty: Boolean
             get() = persisted != null && editable != null && EditableSettings.from(persisted) != editable
@@ -96,6 +116,71 @@ class SettingsViewModel(
                 }
             }
         }
+    }
+
+    fun googleSignInIntent(): Intent = googleSignInManager.signInIntent()
+
+    fun connectGoogle(signInData: Intent?) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isGoogleLoading = true) }
+            runCatching {
+                val account = googleSignInManager.getAccountFromIntent(signInData)
+                val email = account.email ?: throw IllegalStateException("Google email not available")
+                val accessToken = googleSignInManager.fetchAccessToken(account)
+                val listId = withContext(Dispatchers.IO) { tasksListBootstrapUseCase(accessToken) }
+                val current = ensureSettingsUseCase()
+                val updated = current.copy(
+                    googleAccountEmail = email,
+                    googleTasksListId = listId,
+                    googleAuthConnectedAt = System.currentTimeMillis()
+                )
+                settingsDao.upsert(updated)
+            }.onSuccess {
+                _uiState.update {
+                    it.copy(isGoogleLoading = false, snackbarMessage = "Google connected")
+                }
+            }.onFailure { error ->
+                val message = when (error) {
+                    is GoogleAuthException.Unauthorized -> "Session expired. Please sign in again"
+                    is IOException -> "No internet"
+                    else -> "Google sign-in failed"
+                }
+                _uiState.update { it.copy(isGoogleLoading = false, snackbarMessage = message) }
+            }
+        }
+    }
+
+    fun onGoogleSignInFailed() {
+        _uiState.update { it.copy(snackbarMessage = "Google sign-in failed") }
+    }
+
+    fun disconnectGoogle() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isGoogleLoading = true) }
+            runCatching {
+                googleSignInManager.signOut()
+                val current = ensureSettingsUseCase()
+                settingsDao.upsert(
+                    current.copy(
+                        googleAccountEmail = null,
+                        googleTasksListId = null,
+                        googleAuthConnectedAt = null
+                    )
+                )
+            }.onSuccess {
+                _uiState.update {
+                    it.copy(isGoogleLoading = false, snackbarMessage = "Disconnected")
+                }
+            }.onFailure {
+                _uiState.update {
+                    it.copy(isGoogleLoading = false, snackbarMessage = "Failed to disconnect")
+                }
+            }
+        }
+    }
+
+    fun consumeSnackbar() {
+        _uiState.update { it.copy(snackbarMessage = null) }
     }
 
     fun updateTime(field: String, value: String) {
@@ -178,10 +263,18 @@ class SettingsViewModel(
     class Factory(
         private val settingsDao: SettingsDao,
         private val ensureSettingsUseCase: EnsureSettingsUseCase,
-        private val generateIntakesUseCase: GenerateIntakesUseCase
+        private val generateIntakesUseCase: GenerateIntakesUseCase,
+        private val googleSignInManager: GoogleSignInManager,
+        private val tasksListBootstrapUseCase: TasksListBootstrapUseCase
     ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return SettingsViewModel(settingsDao, ensureSettingsUseCase, generateIntakesUseCase) as T
+            return SettingsViewModel(
+                settingsDao,
+                ensureSettingsUseCase,
+                generateIntakesUseCase,
+                googleSignInManager,
+                tasksListBootstrapUseCase
+            ) as T
         }
     }
 }
